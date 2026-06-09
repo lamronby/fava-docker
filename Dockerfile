@@ -1,62 +1,30 @@
-ARG BEANCOUNT_VERSION=2.3.6
-ARG FAVA_VERSION=v1.30.4
+ARG BEANCOUNT_VERSION=3.2.0
+ARG FAVA_VERSION=v1.30.7
+ARG BEANCOUNT_REDS_IMPORTERS_VERSION=main
+ARG FAVA_PORTFOLIO_SUMMARY_VERSION=main
 
-ARG NODE_BUILD_IMAGE=22-bookworm
-FROM node:${NODE_BUILD_IMAGE} AS node_build_env
-ARG FAVA_VERSION
-
-WORKDIR /tmp/build
-RUN git clone https://github.com/beancount/fava
-
-RUN apt-get update
-RUN apt-get install -y python3-babel
-
-WORKDIR /tmp/build/fava
-RUN git checkout ${FAVA_VERSION}
-RUN make
-RUN rm -rf .*cache && \
-    rm -rf .eggs && \
-    rm -rf .tox && \
-    rm -rf build && \
-    rm -rf dist && \
-    rm -rf frontend/node_modules && \
-    find . -type f -name '*.py[c0]' -delete && \
-    find . -type d -name "__pycache__" -delete
-
-# Why not use `python:bookworm`? Because the final app is served by
-# distroless Python image, which is Debian + Python from Debain APT
-# repo. The python intepreter in the `python:bookworm` image is not from
-# Debian APT repo.
-FROM debian:bookworm AS build_env
+FROM debian:trixie AS build_env
 ARG BEANCOUNT_VERSION
 
 RUN apt-get update
 RUN apt-get install -y build-essential libxml2-dev libxslt-dev curl \
         python3 libpython3-dev python3-pip git python3-venv
 
-
+RUN python3 -m venv /app
 ENV PATH="/app/bin:$PATH"
-RUN python3 -mvenv /app
-COPY --from=node_build_env /tmp/build/fava /tmp/build/fava
 
-WORKDIR /tmp/build
-RUN git clone https://github.com/beancount/beancount
-
-WORKDIR /tmp/build/beancount
-RUN git checkout ${BEANCOUNT_VERSION}
-
-RUN CFLAGS=-s pip3 install -U /tmp/build/beancount
-RUN pip3 install -U /tmp/build/fava
 ADD requirements.txt .
-RUN pip3 install --require-hashes -U -r requirements.txt
-RUN pip3 install git+https://github.com/beancount/beanprice.git@41576e2ac889e4825e4985b6f6c56aa71de28304
-RUN pip3 install git+https://github.com/andreasgerstmayr/fava-portfolio-returns.git@c5dcf76697c305a88abe0a583ce68e8231a75c7f
+RUN pip install -r requirements.txt
+# beancount 3 support in beancount_reds_importers has not yet been released
+# in a package
+RUN pip install git+https://github.com/redstreet/beancount_reds_importers@8a08853a5839636428ff2bc5cd0fd0a508147560
+# fava_portfolio_summary doesn't have a published package
+RUN pip install git+https://github.com/PhracturedBlue/fava-portfolio-summary@7d3301619025d735830c389948e5527456050d44
 
-RUN pip3 uninstall -y pip
-
+RUN pip uninstall -y pip
 RUN find /app -name __pycache__ -exec rm -rf -v {} +
 
-FROM gcr.io/distroless/python3-debian12
+FROM gcr.io/distroless/python3-debian13
 COPY --from=build_env /app /app
 
 # Default fava port number
