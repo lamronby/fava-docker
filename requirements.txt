@@ -6,4 +6,5 @@ beangulp==0.2.0
 beanquery==0.2.0
 fava>=1.30.7
 fava-dashboards>=2.0.0b8
+pydantic==2.12.3
 qpass==2.3
