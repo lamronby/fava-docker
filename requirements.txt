@@ -6,5 +6,6 @@ beangulp==0.2.0
 beanquery==0.2.0
 fava>=1.30.7
 fava-dashboards>=2.0.0b8
+fava-summary-only @ git+https://github.com/lamronby/fava-summary-only.git@main
 pydantic==2.12.3
 qpass==2.3
